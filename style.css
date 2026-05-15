@@ -1,0 +1,254 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #1e1e1e;
+    color: #f5f5f5;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* --- Auth Form CSS --- */
+.auth-container {
+    background-color: #252526;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    width: 340px;
+    text-align: center;
+}
+
+.auth-container h2 { margin-bottom: 25px; }
+
+.auth-container form { display: flex; flex-direction: column; }
+
+.auth-container input {
+    background-color: #3c3c3c;
+    border: 1px solid #555;
+    color: #fff;
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    font-size: 1rem;
+    outline: none;
+}
+
+.auth-container button {
+    background-color: #007acc;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.auth-container button:hover { background-color: #0062a3; }
+
+#switch-auth { color: #007acc; cursor: pointer; text-decoration: underline; }
+
+/* --- App Dashboard Multi-Column Layout --- */
+.app-container {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    flex-direction: row; /* Forces panels to sit perfectly left-to-right */
+}
+
+/* Column 1: Left Sidebar (User Profiles & Notes List) */
+.sidebar {
+    width: 260px;
+    min-width: 260px;
+    background-color: #252526;
+    border-right: 1px solid #3c3c3c;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.user-profile {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #3c3c3c;
+    font-size: 0.85rem;
+    color: #aaa;
+}
+
+#logout-btn {
+    background: transparent;
+    border: 1px solid #555;
+    color: #ff6b6b;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#logout-btn:hover { background: #3c3c3c; }
+
+#new-note-btn {
+    background-color: #007acc;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+#new-note-btn:hover { background-color: #0062a3; }
+
+.notes-list { flex: 1; overflow-y: auto; }
+
+.note-item {
+    padding: 12px;
+    background: #2d2d2d;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.note-item:hover { background: #37373d; }
+
+.note-item.active { border: 1px solid #007acc; background: #37373d; }
+
+/* Column 2: Center Editor Workspace */
+.editor-container {
+    flex: 1; /* Takes up all dynamic middle space */
+    display: flex;
+    flex-direction: column;
+    padding: 30px;
+    background-color: #1e1e1e;
+}
+
+#note-title {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+    outline: none;
+}
+
+#note-content {
+    background: transparent;
+    border: none;
+    color: #cccccc;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    resize: none;
+    flex: 1;
+    outline: none;
+}
+
+.editor-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #2d2d2d;
+}
+
+.save-status { font-size: 0.85rem; color: #888; }
+
+.delete-btn {
+    background-color: #2d2d2d;
+    color: #ff6b6b;
+    border: 1px solid #555;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.delete-btn:hover {
+    background-color: #ff6b6b;
+    color: white;
+    border-color: #ff6b6b;
+}
+
+/* Column 3: Right Sidebar (Hidden unless logged into 'admin') */
+.admin-sidebar {
+    width: 260px;
+    min-width: 260px;
+    background-color: #1a1a1c;
+    border-left: 1px solid #3c3c3c;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-sidebar h3 {
+    color: #ff4a4a;
+    font-size: 1rem;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #3c3c3c;
+    padding-bottom: 10px;
+}
+
+.admin-sidebar h4 {
+    font-size: 0.85rem;
+    color: #aaa;
+    margin-bottom: 12px;
+}
+
+.admin-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.admin-user-card {
+    background: #252526;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    border: 1px solid #333;
+}
+
+.admin-user-name {
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    font-family: monospace;
+}
+
+.admin-delete-user-btn {
+    background: #ff4a4a;
+    color: white;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.2s;
+}
+
+.admin-delete-user-btn:hover {
+    background: #d13030;
+}

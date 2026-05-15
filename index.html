@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteApp - Admin Edition</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="auth-screen" class="auth-container">
+        <h2 id="auth-title">Create Account</h2>
+        <form id="auth-form">
+            <input type="text" id="username" placeholder="Username" required autocomplete="off">
+            <input type="password" id="password" placeholder="Password (min 6 chars)" required>
+            <button type="submit" id="submit-btn">Register</button>
+        </form>
+        <p id="toggle-text">Already have an account? <span id="switch-auth">Log In</span></p>
+        <p id="error-message" style="color: #ff6b6b; font-weight: bold; margin-top: 10px;"></p>
+    </div>
+
+    <div id="app-screen" class="app-container hidden">
+        <aside class="sidebar">
+            <div class="user-profile">
+                <span id="user-email-display">Username</span>
+                <button id="logout-btn">Log Out</button>
+            </div>
+            <button id="new-note-btn">+ New Note</button>
+            <div id="notes-list" class="notes-list"></div>
+        </aside>
+
+        <main class="editor-container">
+            <input type="text" id="note-title" placeholder="Untitled Note" disabled>
+            <textarea id="note-content" placeholder="Start typing your notes here..." disabled></textarea>
+            
+            <div class="editor-footer">
+                <div id="save-status" class="save-status">Select or create a note to begin</div>
+                <button id="delete-note-btn" class="delete-btn hidden">Delete Note</button>
+            </div>
+        </main>
+
+        <aside id="admin-panel" class="admin-sidebar hidden">
+            <h3>Admin Command Center</h3>
+            <div class="admin-section">
+                <h4>All Active Users</h4>
+                <div id="admin-users-list" class="admin-list"></div>
+            </div>
+        </aside>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
