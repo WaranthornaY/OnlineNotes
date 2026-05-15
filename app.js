@@ -1,13 +1,33 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+// ==========================================
+// 1. FIREBASE ARCHITECTURE ENVIRONMENT SETUP
+// ==========================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { 
-    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    getAuth, 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword,
+    signOut, 
+    onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { 
-    getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, serverTimestamp, getDocs 
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    getFirestore, 
+    collection, 
+    doc, 
+    setDoc, 
+    getDoc,
+    getDocs, 
+    deleteDoc, 
+    addDoc,
+    updateDoc,
+    query, 
+    where,
+    orderBy,
+    onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+// !!! FIREBASE DASHBOARD KEY CONFIG PIPELINE !!!
 const firebaseConfig = {
-    apiKey: "AIzaSyBCl7XcyNmV0nCh3hQX61QaeCdBLLlFho4", 
+    apiKey: "AIzaSyBCl7XcyNmV0nCh3hQX61QaeCdBLLlFho4",
     authDomain: "noteapp-25b28.firebaseapp.com",
     projectId: "noteapp-25b28",
     storageBucket: "noteapp-25b28.appspot.com",
@@ -19,285 +39,339 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let currentUserId = null;
-let currentUsername = null; // New variable to store the text username
-let currentNoteId = null;
-let autoSaveTimeout = null;
-let unsubscribeNotesListener = null;
-let unsubscribeAdminListener = null;
-
-const authScreen = document.getElementById("auth-screen");
-const appScreen = document.getElementById("app-screen");
-const authForm = document.getElementById("auth-form");
-const usernameInput = document.getElementById("username");
-const passwordInput = document.getElementById("password");
-const submitBtn = document.getElementById("submit-btn");
-const authTitle = document.getElementById("auth-title");
-const switchAuth = document.getElementById("switch-auth");
-const toggleText = document.getElementById("toggle-text");
-const errorMessage = document.getElementById("error-message");
-const userEmailDisplay = document.getElementById("user-email-display");
+// ==========================================
+// 2. DOM INTERFACE COMPONENT SELECTORS
+// ==========================================
+const authContainer = document.getElementById("auth-container");
+const appContainer = document.getElementById("app-container");
+const loginForm = document.getElementById("login-form");
+const emailInput = document.getElementById("email-input");
+const passwordInput = document.getElementById("password-input");
 const logoutBtn = document.getElementById("logout-btn");
-const newNoteBtn = document.getElementById("new-note-btn");
-const notesList = document.getElementById("notes-list");
-const noteTitleInput = document.getElementById("note-title");
-const noteContentInput = document.getElementById("note-content");
-const saveStatus = document.getElementById("save-status");
-const deleteNoteBtn = document.getElementById("delete-note-btn");
+
 const adminPanel = document.getElementById("admin-panel");
-const adminUsersList = document.getElementById("admin-users-list");
+const userListContainer = document.getElementById("user-list");
 
-let isRegisterMode = true;
+const newNoteBtn = document.getElementById("new-note-btn");
+const sidebarNotesList = document.getElementById("sidebar-notes-list");
+const noteTitleInput = document.getElementById("note-title-input");
+const noteContentInput = document.getElementById("note-content-input");
+const deleteNoteBtn = document.getElementById("delete-note-btn");
+const saveStatus = document.getElementById("save-status");
 
-// --- 1. MONITOR LOGIN STATE CHANGES ---
-onAuthStateChanged(auth, (user) => {
+// Global Instance Trackers
+let currentActiveUserId = null;
+let currentActiveNoteId = null;
+let unsubscribeNotesListener = null;
+let saveDebounceTimeout = null;
+
+// ==========================================
+// 3. CORE SERVICE DISPATCHER (AUTH WATCHER)
+// ==========================================
+onAuthStateChanged(auth, async (user) => {
     if (user) {
-        currentUserId = user.uid;
-        currentUsername = user.email.split("@")[0]; // Extract clean username string
-        userEmailDisplay.textContent = currentUsername;
-        
-        authScreen.classList.add("hidden");
-        appScreen.classList.remove("hidden");
+        // --- REJECT BANNED ACCOUNTS INSTANTLY ---
+        const banRef = doc(db, "bannedUsers", user.uid);
+        const banSnap = await getDoc(banRef);
 
-        if (currentUsername === "admin") {
-            adminPanel.classList.remove("hidden");
-            startAdminDashboard();
-        } else {
-            adminPanel.classList.add("hidden");
-            startListeningToNotes(user.uid);
-        }
-    } else {
-        currentUserId = null;
-        currentUsername = null;
-        resetEditorView();
-        if (unsubscribeNotesListener) unsubscribeNotesListener();
-        if (unsubscribeAdminListener) unsubscribeAdminListener();
-        
-        adminPanel.classList.add("hidden");
-        appScreen.classList.add("hidden");
-        authScreen.classList.remove("hidden");
-    }
-});
-
-function resetEditorView() {
-    currentNoteId = null;
-    noteTitleInput.value = "";
-    noteContentInput.value = "";
-    noteTitleInput.disabled = true;
-    noteContentInput.disabled = true;
-    saveStatus.textContent = "Select or create a note to begin";
-    deleteNoteBtn.classList.add("hidden");
-}
-
-// --- 2. REGISTRATION & LOGIN ACTIONS ---
-authForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    errorMessage.textContent = "";
-    const username = usernameInput.value.trim().toLowerCase();
-    const password = passwordInput.value;
-    const fakeEmail = `${username}@noteapp.com`;
-
-    try {
-        if (isRegisterMode) {
-            await createUserWithEmailAndPassword(auth, fakeEmail, password);
-        } else {
-            await signInWithEmailAndPassword(auth, fakeEmail, password);
-        }
-        authForm.reset();
-    } catch (error) {
-        if (error.code === "auth/email-already-in-use" || error.code === "auth/invalid-email") {
-            errorMessage.textContent = "Username is already taken or invalid.";
-        } else if (error.code === "auth/weak-password") {
-            errorMessage.textContent = "Password must be at least 6 characters.";
-        } else if (error.code === "auth/invalid-credential") {
-            errorMessage.textContent = "Incorrect username or password.";
-        } else {
-            errorMessage.textContent = error.message;
-        }
-    }
-});
-
-switchAuth.addEventListener("click", () => {
-    isRegisterMode = !isRegisterMode;
-    errorMessage.textContent = "";
-    if (isRegisterMode) {
-        authTitle.textContent = "Create Account";
-        submitBtn.textContent = "Register";
-        toggleText.innerHTML = 'Already have an account? <span id="switch-auth">Log In</span>';
-    } else {
-        authTitle.textContent = "Welcome Back";
-        submitBtn.textContent = "Log In";
-        toggleText.innerHTML = 'Need an account? <span id="switch-auth">Register</span>';
-    }
-    document.getElementById("switch-auth").addEventListener("click", () => switchAuth.click());
-});
-
-logoutBtn.addEventListener("click", () => signOut(auth));
-
-// --- 3. STANDARD USER NOTE LISTENER ---
-function startListeningToNotes(userId) {
-    const q = query(collection(db, "notes"), where("userId", "==", userId), orderBy("updatedAt", "desc"));
-    setupNoteRender(q);
-}
-
-// --- 4. ADMIN COMMAND CENTER LOGIC ---
-function startAdminDashboard() {
-    const q = query(collection(db, "notes"), orderBy("updatedAt", "desc"));
-    setupNoteRender(q);
-
-    unsubscribeAdminListener = onSnapshot(collection(db, "notes"), (snapshot) => {
-        adminUsersList.innerHTML = "";
-        
-        // Use a Map tracking structure to pair unique user IDs with their exact usernames
-        const userMap = new Map();
-        
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.userId && data.userId !== currentUserId) {
-                // Fallback to "Anonymous User" if old test notes lack a recorded username field
-                const loggedName = data.username ? data.username : "unknown_old_account";
-                userMap.set(data.userId, loggedName);
-            }
-        });
-
-        if (userMap.size === 0) {
-            adminUsersList.innerHTML = '<p class="empty-history-text">No other active user accounts found.</p>';
+        if (banSnap.exists()) {
+            alert("🔒 Operational Access Error: This account profile has been terminated by the administrator.");
+            await signOut(auth);
+            resetAppViewLayout();
+            showAuthScreen();
             return;
         }
 
-        // Render the clear user profile cards using clean text names
-        userMap.forEach((username, uid) => {
-            const card = document.createElement("div");
-            card.classList.add("admin-user-card");
-            
-            card.innerHTML = `
-                <div class="admin-user-name" style="font-family: inherit; color: #007acc; font-size: 1rem;">@${username}</div>
-                <button class="admin-delete-user-btn" data-uid="${uid}">Wipe User Data</button>
-            `;
-            
-            card.querySelector(".admin-delete-user-btn").addEventListener("click", async (e) => {
-                const targetUid = e.target.getAttribute("data-uid");
-                const confirmWipe = confirm(`Are you sure you want to delete all notes belonging to @${username}?`);
-                if (!confirmWipe) return;
+        // --- AUTHORIZED SESSION ENGAGED ---
+        currentActiveUserId = user.uid;
+        showAppScreen();
 
-                const userNotesQuery = query(collection(db, "notes"), where("userId", "==", targetUid));
-                const querySnapshot = await getDocs(userNotesQuery);
-                
-                querySnapshot.forEach(async (noteDoc) => {
-                    await deleteDoc(doc(db, "notes", noteDoc.id));
-                });
-                
-                alert(`All notes for @${username} have been wiped.`);
-            });
-
-            adminUsersList.appendChild(card);
-        });
-    });
-}
-
-function setupNoteRender(firebaseQuery) {
-    if (unsubscribeNotesListener) unsubscribeNotesListener();
-
-    unsubscribeNotesListener = onSnapshot(firebaseQuery, (snapshot) => {
-        notesList.innerHTML = "";
-        let currentlyActiveNoteStillExists = false;
-
-        snapshot.forEach((doc) => {
-            const note = doc.data();
-            const noteId = doc.id;
-            const item = document.createElement("div");
-            item.classList.add("note-item");
-            
-            if (noteId === currentNoteId) {
-                item.classList.add("active");
-                currentlyActiveNoteStillExists = true;
-            }
-            
-            // If admin view is loaded, display the creator name right next to the note title header
-            const titleDisplay = note.title.trim() === "" ? "Untitled Note" : note.title;
-            if (currentUsername === "admin" && note.username) {
-                item.innerHTML = `${titleDisplay} <span style="color: #ff4a4a; font-size: 11px; float: right; margin-top: 2px;">@${note.username}</span>`;
-            } else {
-                item.textContent = titleDisplay;
-            }
-            
-            item.addEventListener("click", () => {
-                currentNoteId = noteId;
-                noteTitleInput.disabled = false;
-                noteContentInput.disabled = false;
-                noteTitleInput.value = note.title;
-                noteContentInput.value = note.content;
-                saveStatus.textContent = "All changes saved";
-                deleteNoteBtn.classList.remove("hidden");
-                
-                document.querySelectorAll(".note-item").forEach(el => el.classList.remove("active"));
-                item.classList.add("active");
-            });
-            notesList.appendChild(item);
-        });
-
-        if (!currentlyActiveNoteStillExists && currentNoteId !== null) {
-            resetEditorView();
+        if (user.email === "admin@noteapp.com") {
+            adminPanel.classList.remove("hidden");
+            loadRegisteredUsersDirectory();
+        } else {
+            adminPanel.classList.add("hidden");
         }
-    });
-}
 
-// CRITICAL FIX: The creation path now flags notes explicitly with the owner's explicit textual username
-newNoteBtn.addEventListener("click", async () => {
-    if (!currentUserId || !currentUsername) return;
-    try {
-        const docRef = await addDoc(collection(db, "notes"), {
-            userId: currentUserId,
-            username: currentUsername, // Saves the text username directly inside the document metadata object
-            title: "",
-            content: "",
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-        });
-        currentNoteId = docRef.id;
-        noteTitleInput.disabled = false;
-        noteContentInput.disabled = false;
-        noteTitleInput.value = "";
-        noteContentInput.value = "";
-        deleteNoteBtn.classList.remove("hidden");
-        noteTitleInput.focus();
-    } catch (error) {
-        console.error("Failed creating note:", error);
+        // Initialize Realtime Notes Stream
+        attachRealtimeNotesSync(user.uid);
+
+    } else {
+        // --- NO RUNNING SESSION ---
+        currentActiveUserId = null;
+        resetAppViewLayout();
+        showAuthScreen();
     }
 });
 
-function triggerAutoSave() {
-    if (!currentNoteId) return;
-    saveStatus.textContent = "Saving changes...";
-    clearTimeout(autoSaveTimeout);
+// ==========================================
+// 4. CLIENT AUTHENTICATION HANDLERS
+// ==========================================
+const authTitle = document.getElementById("auth-title");
+const authSubtitle = document.getElementById("auth-subtitle");
+const authSubmitBtn = document.getElementById("auth-submit-btn");
+const authToggleLink = document.getElementById("auth-toggle-link");
+const authToggleText = document.getElementById("auth-toggle-text");
 
-    autoSaveTimeout = setTimeout(async () => {
-        const noteRef = doc(db, "notes", currentNoteId);
+let isSignUpMode = false; 
+
+// Toggle between Login and Sign Up views
+authToggleLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    isSignUpMode = !isSignUpMode;
+
+    if (isSignUpMode) {
+        authTitle.textContent = "Create Account";
+        authSubtitle.textContent = "Sign up to start writing notes";
+        authSubmitBtn.textContent = "Sign Up";
+        authToggleText.textContent = "Already have an account?";
+        authToggleLink.textContent = "Sign In";
+        
+        emailInput.placeholder = "Choose a username";
+        passwordInput.placeholder = "Password";
+    } else {
+        authTitle.textContent = "Welcome to NoteApp";
+        authSubtitle.textContent = "Sign in to sync your personal notebook";
+        authSubmitBtn.textContent = "Sign In";
+        authToggleText.textContent = "Don't have an account?";
+        authToggleLink.textContent = "Sign Up";
+        
+        emailInput.placeholder = "Enter your username";
+        passwordInput.placeholder = "Password";
+    }
+});
+
+// Submission handler converting username to backend email format
+loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    
+    const username = emailInput.value.trim().toLowerCase();
+    const firebaseEmail = `${username}@noteapp.internal`; 
+    const password = passwordInput.value;
+
+    try {
+        if (isSignUpMode) {
+            // ---- CREATE NEW USER ----
+            if (username === "admin") {
+                throw new Error("The username 'admin' is reserved by the system.");
+            }
+
+            const userCredential = await createUserWithEmailAndPassword(auth, firebaseEmail, password);
+            const newUser = userCredential.user;
+
+            // Save username map reference to database
+            await setDoc(doc(db, "users", newUser.uid), {
+                email: username,
+                createdAt: new Date().toISOString()
+            });
+
+            alert(`🎉 Account created successfully! Welcome, ${username}.`);
+        } else {
+            // ---- SIGN IN EXISTING USER ----
+            const loginCredential = username === "admin" ? "admin@noteapp.com" : firebaseEmail;
+            await signInWithEmailAndPassword(auth, loginCredential, password);
+        }
+        loginForm.reset();
+    } catch (error) {
+        alert("Authentication Blocked: " + error.message);
+    }
+});
+
+logoutBtn.addEventListener("click", async () => {
+    if (unsubscribeNotesListener) unsubscribeNotesListener();
+    await signOut(auth);
+});
+
+// ==========================================
+// 5. NOTEBOOK WORKSPACE SYSTEM ENGINES
+// ==========================================
+
+function attachRealtimeNotesSync(userId) {
+    if (unsubscribeNotesListener) unsubscribeNotesListener();
+
+    const notesQuery = query(
+        collection(db, "notes"),
+        where("userId", "==", userId),
+        orderBy("updatedAt", "desc")
+    );
+
+    unsubscribeNotesListener = onSnapshot(notesQuery, (snapshot) => {
+        sidebarNotesList.innerHTML = "";
+        if (snapshot.empty) {
+            sidebarNotesList.innerHTML = `<p class="subtitle" style="margin-top:1rem;">Empty Notebook.</p>`;
+            return;
+        }
+
+        snapshot.forEach((noteDoc) => {
+            const data = noteDoc.data();
+            const noteItem = document.createElement("div");
+            noteItem.className = `sidebar-note-item ${noteDoc.id === currentActiveNoteId ? 'active' : ''}`;
+            noteItem.textContent = data.title || "Untitled Note";
+            noteItem.addEventListener("click", () => loadTargetNoteToWorkspace(noteDoc.id, data));
+            sidebarNotesList.appendChild(noteItem);
+        });
+    }, (error) => {
+        console.error("Notes synchronization pipeline failure:", error);
+    });
+}
+
+function loadTargetNoteToWorkspace(noteId, data) {
+    currentActiveNoteId = noteId;
+    document.querySelectorAll(".sidebar-note-item").forEach(el => el.classList.remove("active"));
+    
+    noteTitleInput.removeAttribute("disabled");
+    noteContentInput.removeAttribute("disabled");
+    deleteNoteBtn.classList.remove("hidden");
+
+    noteTitleInput.value = data.title || "";
+    noteContentInput.value = data.content || "";
+    saveStatus.textContent = "All changes loaded from cloud";
+}
+
+newNoteBtn.addEventListener("click", async () => {
+    if (!currentActiveUserId) return;
+    try {
+        const newDocRef = await addDoc(collection(db, "notes"), {
+            userId: currentActiveUserId,
+            title: "",
+            content: "",
+            updatedAt: new Date().toISOString()
+        });
+        currentActiveNoteId = newDocRef.id;
+        saveStatus.textContent = "Blank document prepared";
+    } catch (error) {
+        console.error("Failed to generate document workspace entry:", error);
+    }
+});
+
+noteTitleInput.addEventListener("input", queueDocumentAutoSave);
+noteContentInput.addEventListener("input", queueDocumentAutoSave);
+
+function queueDocumentAutoSave() {
+    if (!currentActiveNoteId) return;
+    saveStatus.textContent = "Writing to cloud sync engine...";
+    
+    clearTimeout(saveDebounceTimeout);
+    saveDebounceTimeout = setTimeout(async () => {
         try {
+            const noteRef = doc(db, "notes", currentActiveNoteId);
             await updateDoc(noteRef, {
                 title: noteTitleInput.value,
                 content: noteContentInput.value,
-                updatedAt: serverTimestamp()
+                updatedAt: new Date().toISOString()
             });
-            saveStatus.textContent = "All changes saved";
+            saveStatus.textContent = "Cloud Sync Verified (Saved)";
         } catch (error) {
-            saveStatus.textContent = "Error auto-saving changes";
+            saveStatus.textContent = "Connection Sync Interrupted";
+            console.error("Database writing error:", error);
         }
     }, 800);
 }
 
 deleteNoteBtn.addEventListener("click", async () => {
-    if (!currentNoteId) return;
-    const confirmDelete = confirm("Are you sure you want to permanently delete this note?");
-    if (!confirmDelete) return;
-
-    try {
-        saveStatus.textContent = "Deleting note...";
-        await deleteDoc(doc(db, "notes", currentNoteId));
-    } catch (error) {
-        saveStatus.textContent = "Error deleting note";
+    if (!currentActiveNoteId) return;
+    if (confirm("Delete this note permanently?")) {
+        try {
+            await deleteDoc(doc(db, "notes", currentActiveNoteId));
+            resetAppViewLayout();
+        } catch (error) {
+            alert("Deletion Error: " + error.message);
+        }
     }
 });
 
-noteTitleInput.addEventListener("input", triggerAutoSave);
-noteContentInput.addEventListener("input", triggerAutoSave);
+// ==========================================
+// 6. MASTER ADMIN CONTROL SYSTEM (CARD-FREE WIPE)
+// ==========================================
+
+async function loadRegisteredUsersDirectory() {
+    userListContainer.innerHTML = "<p>Scanning access directories...</p>";
+    try {
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        userListContainer.innerHTML = "";
+
+        if (usersSnapshot.empty) {
+            userListContainer.innerHTML = "<p>No application profiles found in directory database.</p>";
+            return;
+        }
+
+        usersSnapshot.forEach((userDoc) => {
+            const userData = userDoc.data();
+            const userId = userDoc.id;
+
+            if (userData.email === "admin") return;
+
+            const userRow = document.createElement("div");
+            userRow.className = "user-row";
+            userRow.innerHTML = `
+                <span><strong>${userData.email}</strong> [UID: ${userId}]</span>
+                <button class="delete-user-btn danger-btn" data-id="${userId}">Drop Database & Ban</button>
+            `;
+            userListContainer.appendChild(userRow);
+        });
+
+        document.querySelectorAll(".delete-user-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const targetUid = e.target.getAttribute("data-id");
+                adminExecutionPurgeUser(targetUid);
+            });
+        });
+
+    } catch (error) {
+        userListContainer.innerHTML = `<p style="color:var(--danger)">Directory view error. Confirm Firestore rules match database configurations.</p>`;
+    }
+}
+
+async function adminExecutionPurgeUser(targetUserId) {
+    const doubleCheck = confirm("🚨 WARNING: IRREVERSIBLE OPERATION ACTION!\n\nAre you sure you want to drop all database documents matching this user ID and banish their active login session privileges?");
+    if (!doubleCheck) return;
+
+    try {
+        const notesQuery = query(collection(db, "notes"), where("userId", "==", targetUserId));
+        const notesSnapshot = await getDocs(notesQuery);
+        
+        const deleteTasks = [];
+        notesSnapshot.forEach((noteDoc) => {
+            deleteTasks.push(deleteDoc(noteDoc.ref));
+        });
+        
+        await Promise.all(deleteTasks);
+
+        await setDoc(doc(db, "bannedUsers", targetUserId), {
+            bannedAt: new Date().toISOString(),
+            status: "Terminated",
+            reason: "Account structural termination applied by network supervisor"
+        });
+
+        alert("🎯 Operation Execution Finished. Cloud database files purged and entry token flagged on blacklist.");
+        loadRegisteredUsersDirectory();
+
+    } catch (error) {
+        console.error("Process execution error:", error);
+        alert("Action Denied: Rules authorization missing. Details: " + error.message);
+    }
+}
+
+// ==========================================
+// 7. DISPLAY PORT INTERFACE TOGGLES
+// ==========================================
+function showAuthScreen() {
+    authContainer.classList.remove("hidden");
+    appContainer.classList.add("hidden");
+}
+
+function showAppScreen() {
+    authContainer.classList.add("hidden");
+    appContainer.classList.remove("hidden");
+}
+
+function resetAppViewLayout() {
+    currentActiveNoteId = null;
+    noteTitleInput.value = "";
+    noteContentInput.value = "";
+    noteTitleInput.setAttribute("disabled", "true");
+    noteContentInput.setAttribute("disabled", "true");
+    saveStatus.textContent = "Select or create a note to begin editing";
+    deleteNoteBtn.classList.add("hidden");
+    sidebarNotesList.innerHTML = "";
+}
