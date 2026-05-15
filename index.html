@@ -3,49 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Note App</title>
+    <title>Secure Cloud NoteApp</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="auth-screen" class="auth-container">
-        <h2 id="auth-title">Create Account</h2>
-        <form id="auth-form">
-            <input type="text" id="username" placeholder="Username" required autocomplete="off">
-            <input type="password" id="password" placeholder="Password (min 6 chars)" required>
-            <button type="submit" id="submit-btn">Register</button>
+    <div id="auth-container" class="central-card">
+        <h2 id="auth-title">Welcome to NoteApp</h2>
+        <p id="auth-subtitle" class="subtitle">Sign in to sync your personal notebook</p>
+        <form id="login-form">
+            <div class="input-group">
+                <label for="email-input">Username</label>
+                <input type="text" id="email-input" placeholder="Enter your username" required autocomplete="username">
+            </div>
+            <div class="input-group">
+                <label for="password-input">Password</label>
+                <input type="password" id="password-input" placeholder="Password" required autocomplete="current-password">
+            </div>
+            <button type="submit" id="auth-submit-btn" class="primary-btn">Sign In</button>
+            
+            <p class="subtitle" style="margin-top: 1.5rem; margin-bottom: 0;">
+                <span id="auth-toggle-text">Don't have an account?</span> 
+                <a href="#" id="auth-toggle-link" style="color: var(--primary-purple); font-weight: bold; text-decoration: none;">Sign Up</a>
+            </p>
         </form>
-        <p id="toggle-text">Already have an account? <span id="switch-auth">Log In</span></p>
-        <p id="error-message" style="color: #ff6b6b; font-weight: bold; margin-top: 10px;"></p>
     </div>
 
-    <div id="app-screen" class="app-container hidden">
-        <aside class="sidebar">
-            <div class="user-profile">
-                <span id="user-email-display">Username</span>
-                <button id="logout-btn">Log Out</button>
-            </div>
-            <button id="new-note-btn">+ New Note</button>
-            <div id="notes-list" class="notes-list"></div>
-        </aside>
+    <div id="app-container" class="hidden">
+        
+        <header class="app-header">
+            <h1>📝 NoteApp Cloud</h1>
+            <button id="logout-btn" class="secondary-btn">Sign Out</button>
+        </header>
 
-        <main class="editor-container">
-            <input type="text" id="note-title" placeholder="Untitled Note" disabled>
-            <textarea id="note-content" placeholder="Start typing your notes here..." disabled></textarea>
+        <main class="workspace">
             
-            <div class="editor-footer">
-                <div id="save-status" class="save-status">Select or create a note to begin</div>
-                <button id="delete-note-btn" class="delete-btn hidden">Delete Note</button>
-            </div>
-        </main>
+            <section id="admin-panel" class="admin-section hidden">
+                <div class="panel-card">
+                    <h3>🛡️ Master Administration Control Panel</h3>
+                    <p class="panel-desc">Manage system access profiles, drop user databases, and issue administrative bans.</p>
+                    <hr>
+                    <div id="user-list" class="user-directory-grid">
+                        </div>
+                </div>
+            </section>
 
-        <aside id="admin-panel" class="admin-sidebar hidden">
-            <h3>Admin Command Center</h3>
-            <div class="admin-section">
-                <h4>All Active Users</h4>
-                <div id="admin-users-list" class="admin-list"></div>
-            </div>
-        </aside>
+            <section id="user-notes-section" class="notes-workspace">
+                <div class="workspace-layout">
+                    <aside class="notes-sidebar">
+                        <button id="new-note-btn" class="accent-btn">+ Create New Note</button>
+                        <div id="sidebar-notes-list">
+                            </div>
+                    </aside>
+                    
+                    <article class="editor-pane">
+                        <div class="editor-meta">
+                            <span id="save-status">Select or create a note to begin editing</span>
+                            <button id="delete-note-btn" class="danger-btn hidden">Delete Note</button>
+                        </div>
+                        <input type="text" id="note-title-input" placeholder="Untitled Note Title" disabled>
+                        <textarea id="note-content-input" placeholder="Start typing your note contents here..." disabled></textarea>
+                    </article>
+                </div>
+            </section>
+
+        </main>
     </div>
 
     <script type="module" src="app.js"></script>
