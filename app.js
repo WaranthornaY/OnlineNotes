@@ -196,7 +196,9 @@ function attachRealtimeNotesSync(userId) {
     );
 
     unsubscribeNotesListener = onSnapshot(notesQuery, (snapshot) => {
-        sidebarNotesList.innerHTML = "";
+        sidebarNotesList.innerHTML = ""; // Clear list
+        // No inline background styles here! Let style.css handle the gorgeous frosted look.
+
         if (snapshot.empty) {
             sidebarNotesList.innerHTML = `<p class="subtitle" style="margin-top:1rem;">Empty Notebook.</p>`;
             return;
